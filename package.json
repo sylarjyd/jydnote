@@ -1,0 +1,83 @@
+{
+  "name": "jydnote",
+  "version": "0.1.0",
+  "description": "简阅笔记 - 支持 DeepSeek / 百炼 / LM Studio 与本地 Ollama 的 AI 知识库笔记",
+  "main": "./out/main/index.js",
+  "author": "jydnote",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "start": "electron-vite preview",
+    "package": "npm run build && electron-builder --win",
+    "fetch-ocr": "node scripts/fetch-ocr-data.mjs",
+    "smoke": "tsx scripts/smoke.ts",
+    "check-ocr": "tsx scripts/ocr-check.ts"
+  },
+  "build": {
+    "appId": "com.jydnote.app",
+    "productName": "简阅笔记",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**",
+      "resources/**"
+    ],
+    "asarUnpack": [
+      "node_modules/tesseract.js/**",
+      "node_modules/tesseract.js-core/**"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/tessdata",
+        "to": "tessdata",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "dependencies": {
+    "@xmldom/xmldom": "^0.8.15",
+    "iconv-lite": "^0.7.3",
+    "jschardet": "^4.1.0",
+    "jszip": "^3.10.2",
+    "lucide-react": "^1.74.0",
+    "mammoth": "^1.13.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "tesseract.js": "^7.0.0",
+    "turndown": "^7.2.5",
+    "turndown-plugin-gfm": "^1.0.2",
+    "unpdf": "^2.2.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@tesseract.js-data/chi_sim": "^1.0.0",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/turndown": "^5.0.6",
+    "@vitejs/plugin-react": "^6.3.0",
+    "electron": "^45.3.3",
+    "electron-builder": "^26.18.0",
+    "electron-vite": "^6.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8"
+  }
+}

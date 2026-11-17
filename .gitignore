@@ -1,0 +1,10 @@
+node_modules/
+out/
+release/
+dist/
+*.log
+.env
+.env.*
+.DS_Store
+resources/tessdata/*.traineddata
+resources/tessdata/*.traineddata.gz
