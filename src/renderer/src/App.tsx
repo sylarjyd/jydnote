@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import type {
   AppSettings,
+  DocContent,
   DocMeta,
   ImportProgress,
   ModelStatus,
+  NoteFormat,
   RagStreamEvent,
   ThemeMode
 } from '../../shared/types'
+import { noteTitleOfName } from '../../shared/notes'
 import { applyTheme } from './lib/theme'
 import Sidebar from './components/Sidebar'
 import ChatPanel from './components/ChatPanel'
@@ -17,6 +20,7 @@ import ImportToast from './components/ImportToast'
 import Toast from './components/Toast'
 import FolderNameDialog from './components/FolderNameDialog'
 import MoveDocDialog from './components/MoveDocDialog'
+import NoteEditorDialog, { type NoteDraft } from './components/NoteEditorDialog'
 import type { ChatMessage } from './types'
 
 function makeId(): string {
@@ -47,6 +51,9 @@ export default function App() {
   const [progress, setProgress] = useState<ImportProgress | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [viewerId, setViewerId] = useState<string | null>(null)
+  const [noteEditor, setNoteEditor] = useState<
+    { mode: 'create'; initial: NoteDraft } | { mode: 'edit'; id: string; initial: NoteDraft } | null
+  >(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [themePreview, setThemePreview] = useState<ThemeMode | null>(null)
   const [dragging, setDragging] = useState(false)
@@ -334,6 +341,51 @@ export default function App() {
     [showNotice]
   )
 
+  const openCreateNote = useCallback(() => {
+    setNoteEditor({
+      mode: 'create',
+      initial: { title: '', content: '', format: 'markdown', folder: null }
+    })
+  }, [])
+
+  const openEditNote = useCallback((content: DocContent) => {
+    const format: NoteFormat = content.meta.kind === 'markdown' ? 'markdown' : 'text'
+    setNoteEditor({
+      mode: 'edit',
+      id: content.meta.id,
+      initial: {
+        title: noteTitleOfName(content.meta.name),
+        content: content.text,
+        format,
+        folder: content.meta.folder ?? null
+      }
+    })
+  }, [])
+
+  const submitNote = useCallback(
+    async (draft: NoteDraft) => {
+      if (!noteEditor) return
+      if (noteEditor.mode === 'create') {
+        const meta = await window.jyd.createNote({
+          title: draft.title,
+          content: draft.content,
+          format: draft.format,
+          folder: draft.folder
+        })
+        setViewerId(meta.id)
+        showNotice('笔记已创建，正在建立索引')
+      } else {
+        await window.jyd.updateNote({
+          id: noteEditor.id,
+          title: draft.title,
+          content: draft.content
+        })
+        showNotice('已保存，正在重建索引')
+      }
+    },
+    [noteEditor, showNotice]
+  )
+
   const createFolder = useCallback((parent: string) => {
     setFolderDialog({ mode: 'create', folder: parent })
   }, [])
@@ -485,6 +537,7 @@ export default function App() {
         selectedIds={selectedIds}
         status={status}
         needsReindex={needsReindex}
+        onCreateNote={openCreateNote}
         onImportFiles={importFiles}
         onImportFolder={importFolder}
         onOpenDoc={setViewerId}
@@ -548,7 +601,17 @@ export default function App() {
         />
       ) : null}
 
-      {viewerId ? (
+      {noteEditor ? (
+        <NoteEditorDialog
+          mode={noteEditor.mode}
+          folders={folders}
+          initial={noteEditor.initial}
+          onSubmit={submitNote}
+          onClose={() => setNoteEditor(null)}
+        />
+      ) : null}
+
+      {viewerId && !noteEditor ? (
         <DocViewer
           docId={viewerId}
           onClose={() => setViewerId(null)}
@@ -558,6 +621,7 @@ export default function App() {
             if (doc) void retryDoc(doc)
             else void window.jyd.reindexDoc(id)
           }}
+          onEdit={openEditNote}
         />
       ) : null}
 

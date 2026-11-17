@@ -298,7 +298,7 @@ export default function DocList({
     return (
       <div className="doc-empty">
         <p>知识库还是空的</p>
-        <span>导入文件或新建目录后，就能在这里分类整理</span>
+        <span>新建笔记、导入文件或新建目录后，就能在这里分类整理</span>
       </div>
     )
   }

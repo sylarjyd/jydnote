@@ -5,6 +5,7 @@
 - **三种模型来源**：默认使用 DeepSeek `deepseek-flash` 对话、阿里云百炼 `text-embedding-v4` 向量化；也可以切到 LM Studio 或任意 OpenAI 兼容 API，或完全本地的 Ollama。对话与嵌入可以任意混搭。
 - **数据留在本机**：文档与索引保存在本机，对话仅在当前窗口内保留。云端模式只发送你的问题和检索到的片段，不会上传整份文档。
 - **多格式 + 整目录导入**：TXT、Markdown、Word（.docx）、Excel（.xlsx/.xls/.csv）、PDF、PPT（.pptx）、图片；支持选择整个文件夹递归导入。
+- **应用内新建 / 编辑笔记**：直接写 Markdown 或 TXT 笔记，选择保存目录；已有的 TXT / Markdown 文档也能在应用内修改。只改写知识库内的副本，磁盘上的原始文件不会被改动。
 - **目录管理**：导入的目录层级会保留在左侧；也可以手动新建、重命名、删除目录，把文档移动到指定目录，或直接拖拽归类。文档列表支持全选与多选后批量移动。所有文档仍在同一个知识库中一起检索。
 - **原位预览**：Word 排版与表格、Excel 工作表、PDF 原页、PPT 幻灯片都能在应用内直接查看，不必另开原文件。
 - **浅色 / 深色主题**：设置里一键切换，保存后下次启动沿用，原生标题栏也会跟随。
@@ -23,8 +24,8 @@
 
 ## 界面与使用方式
 
-1. 点击「导入文件」，或「导入文件夹」选择整个目录；也可以把文件 / 文件夹直接拖进窗口。
-2. 导入后状态显示「解析索引中…」，完成后变为可点击的文档。
+1. 点击「新建笔记」直接写 Markdown / TXT 笔记；或点击「导入文件」「导入文件夹」选择已有资料，也可以把文件 / 文件夹直接拖进窗口。
+2. 新建或导入后状态显示「解析索引中…」，完成后变为可点击的文档。
 3. 在右下角状态按钮或「设置」里确认模型连接状态。
 4. 在底部输入问题，回答会流式输出，下方列出引用来源。
 5. 点击来源卡片查看预览：TXT / Markdown 展示库内原文，Markdown 可直接阅读排版或切换原文；Word、Excel、PDF、PPT、图片展示富预览（表格、工作表、原页、幻灯片）。也可以从文档详情里用系统程序打开原文件。
@@ -36,7 +37,7 @@
 ## 工作原理
 
 ```
-导入：复制原件 → 解析为文本块 → 按语义/结构切块 → 向量化 → 写入本地索引
+导入：复制原件（或应用内写入笔记副本）→ 解析为文本块 → 按语义/结构切块 → 向量化 → 写入本地索引
 提问：问题向量化 → 向量召回 + BM25 关键词召回 → RRF 融合 → 按预算拼上下文 → 对话模型流式作答
 ```
 
@@ -188,7 +189,7 @@ Windows 下统一在 `%APPDATA%\JydNote\`：
 ├─ library\
 │  ├─ index.json          文档元数据（名称、状态、片段数、嵌入提供方、模型、维度…）
 │  └─ docs\<id>\
-│     ├─ source.docx      导入时复制的原件（删除原文件也能继续检索和打开）
+│     ├─ source.docx      导入时复制的原件（应用内新建 / 编辑的笔记同样写在这里）
 │     ├─ doc.json         片段文本与标题路径 / 页码 / 工作表
 │     └─ vectors.bin      归一化 Float32 向量（行优先，chunk 数 × 维度）
 └─ ocr-cache\             tesseract 缓存
@@ -203,6 +204,7 @@ Windows 下统一在 `%APPDATA%\JydNote\`：
 ```
 src/
 ├─ shared/types.ts            主进程 / 渲染进程共享的类型、默认设置与 IPC 契约
+├─ shared/notes.ts            笔记标题 / 正文校验与文件名规则（三端共用）
 ├─ main/
 │  ├─ index.ts                窗口、单实例、生命周期
 │  ├─ ipc.ts                  全部 IPC 通道与流式事件
@@ -237,18 +239,18 @@ docs/
 resources/tessdata/           离线 OCR 数据（构建时随包复制）
 ```
 
-界面按组件拆分：`Sidebar`、`DocList`、`StatusPill`、`ChatPanel`、`ChatMessageView`、`SourceList`、`SettingsDialog`、`SegmentedControl`、`SecretField`、`DocViewer`、`DocPreview`、`FolderNameDialog`、`MoveDocDialog` 等，样式与交互都收在组件内；`App.tsx` 只做状态与事件编排。
+界面按组件拆分：`Sidebar`、`DocList`、`StatusPill`、`ChatPanel`、`ChatMessageView`、`SourceList`、`SettingsDialog`、`SegmentedControl`、`SecretField`、`DocViewer`、`DocPreview`、`FolderNameDialog`、`MoveDocDialog`、`FolderPicker`、`NoteEditorDialog` 等，样式与交互都收在组件内；`App.tsx` 只做状态与事件编排。
 
 ## 验证
 
 ```bash
 npm run typecheck   # 主进程 + 渲染进程类型检查
-npm run smoke       # 15 项核心链路检查，不依赖真实模型服务
+npm run smoke       # 17 项核心链路检查，不依赖真实模型服务
 npm run check-ocr   # tesseract worker + 本地语言数据
 npm run build       # electron-vite 生产构建
 ```
 
-`npm run smoke` 覆盖：GBK / UTF-8 BOM 解码、中文分词、Markdown 标题层级、长文切块边界、Excel 表头重复、docx 解析、PDF 按页提取、知识库保存/向量检索/BM25/重载、目录创建/重命名/移动/删除与持久化、删除后不再召回、崩溃后索引状态恢复。云端与兼容服务部分使用本地 mock HTTP 服务验证：DeepSeek SSE 流式拼接（忽略 `reasoning_content`、关闭思考模式）、百炼每批最多 10 条的自动分批、乱序响应还原、鉴权头与模型状态汇总；LM Studio / OpenAI 兼容服务的模型探测、可选鉴权、无 `thinking` 参数、向量分批与维度推断；不会消耗真实额度。
+`npm run smoke` 覆盖：GBK / UTF-8 BOM 解码、中文分词、笔记标题 / 正文校验、Markdown 标题层级、长文切块边界、Excel 表头重复、docx 解析、PDF 按页提取、知识库保存/向量检索/BM25/重载、目录创建/重命名/移动/删除与持久化、删除后不再召回、崩溃后索引状态恢复。云端与兼容服务部分使用本地 mock HTTP 服务验证：DeepSeek SSE 流式拼接（忽略 `reasoning_content`、关闭思考模式）、百炼每批最多 10 条的自动分批、乱序响应还原、鉴权头与模型状态汇总；LM Studio / OpenAI 兼容服务的模型探测、可选鉴权、无 `thinking` 参数、向量分批与维度推断；不会消耗真实额度。
 
 ## 常见问题
 

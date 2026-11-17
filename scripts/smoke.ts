@@ -29,6 +29,13 @@ import {
   openaiProbe
 } from '../src/main/core/cloud'
 import { getModelStatus } from '../src/main/core/models'
+import {
+  NOTE_TITLE_MAX,
+  noteFileName,
+  noteTitleOfName,
+  validateNoteContent,
+  validateNoteTitle
+} from '../src/shared/notes'
 import type { AppSettings, DocMeta } from '../src/shared/types'
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -107,6 +114,32 @@ try {
     for (const expected of ['番', '番茄', '茄', '茄炒', '蛋']) {
       assert.ok(longRun.includes(expected), `长词缺少 token: ${expected}`)
     }
+  })
+
+  await run('笔记标题与正文校验拒绝空值和超长内容', () => {
+    assert.equal(validateNoteTitle('  周报  '), '周报')
+    assert.equal(validateNoteContent('  正文  '), '  正文  ')
+    assert.equal(noteTitleOfName('产品周报.md'), '产品周报')
+    assert.equal(noteFileName('产品周报', 'markdown'), '产品周报.md')
+    assert.equal(noteFileName('随手记', 'text'), '随手记.txt')
+
+    const throwMessage = (fn: () => unknown): string => {
+      try {
+        fn()
+      } catch (error) {
+        return error instanceof Error ? error.message : String(error)
+      }
+      return ''
+    }
+
+    assert.ok(throwMessage(() => validateNoteTitle('')).includes('不能为空'))
+    assert.ok(throwMessage(() => validateNoteTitle('   ')).includes('不能为空'))
+    assert.ok(
+      throwMessage(() => validateNoteTitle('长'.repeat(NOTE_TITLE_MAX + 1))).includes('120')
+    )
+    assert.ok(throwMessage(() => validateNoteTitle('第一行\n第二行')).includes('换行'))
+    assert.ok(throwMessage(() => validateNoteContent('   ')).includes('不能为空'))
+    assert.ok(throwMessage(() => validateNoteContent(undefined)).includes('不能为空'))
   })
 
   await run('Markdown 解析保留标题路径，代码块内容不被当作标题', () => {

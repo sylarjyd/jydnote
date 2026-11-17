@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Folder, FolderTree, Home, X } from 'lucide-react'
+import { FolderTree, X } from 'lucide-react'
 import type { DocMeta } from '../../../shared/types'
-import { flattenFolders, folderLabel } from '../lib/folders'
+import { folderLabel } from '../lib/folders'
+import FolderPicker from './FolderPicker'
 
 interface Props {
   docs: DocMeta[]
@@ -25,7 +26,6 @@ export default function MoveDocDialog({ docs, folders, onSubmit, onClose }: Prop
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const unchanged = docs.every((doc) => (doc.folder ?? null) === selected)
-  const options = flattenFolders(folders)
 
   useEffect(() => {
     const listener = (event: KeyboardEvent): void => {
@@ -79,35 +79,13 @@ export default function MoveDocDialog({ docs, folders, onSubmit, onClose }: Prop
         </header>
 
         <div className="dialog-body">
-          {options.length || sameFolder !== undefined ? (
-            <div className="folder-picker">
-              <button
-                type="button"
-                className={`folder-option ${selected === null ? 'selected' : ''}`}
-                onClick={() => setSelected(null)}
-              >
-                <Home size={14} />
-                <span className="folder-option-name">知识库根目录</span>
-                {sameFolder === null ? <em>当前</em> : null}
-              </button>
-              {options.map((option) => (
-                <button
-                  key={option.path}
-                  type="button"
-                  className={`folder-option ${selected === option.path ? 'selected' : ''}`}
-                  style={{ paddingLeft: `${10 + option.depth * 16}px` }}
-                  title={option.path}
-                  onClick={() => setSelected(option.path)}
-                >
-                  <Folder size={14} />
-                  <span className="folder-option-name">{option.name}</span>
-                  {sameFolder === option.path ? <em>当前</em> : null}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="doc-dialog-empty">还没有创建目录，可以先在侧边栏新建目录后再移动。</div>
-          )}
+          <FolderPicker
+            folders={folders}
+            value={selected}
+            onChange={setSelected}
+            current={sameFolder}
+            emptyHint="还没有创建目录，可以先在侧边栏新建目录后再移动。"
+          />
           {error ? <div className="settings-error">{error}</div> : null}
         </div>
 

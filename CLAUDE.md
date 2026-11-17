@@ -50,6 +50,8 @@ npm run package          # 构建并打包 Windows NSIS 到 release/
 - 目录递归：忽略隐藏项，深度 ≤ 8，最多 5000 个文件；一次性导入，不监听变化。
 - 文件夹导入会写入 `DocMeta.folder`（相对所选文件夹的路径，`/` 分隔，含所选文件夹名），并把目录登记到 `folders.json`；左侧 `DocList` 结合两者构建可折叠目录树，目录默认折叠，手动创建的空目录也能保留。单文件导入和旧索引没有该字段，显示在根级。
 - 目录是库内虚拟分类：`KnowledgeBase` 负责创建/重命名/删除目录和移动文档，不改动磁盘原文件。重命名要同步子目录与文档的 `folder` 前缀；删除目录时内容上移到父目录。
+- 应用内新建 / 编辑笔记复用同一流水线：`createNote` / `updateNote` 在队列内以 UTF-8 原子写入 `docs/<id>/source.md|txt`（`writeFileAtomic`），随后 `indexStoredSource` 后台调用 `importOne`；IPC 不等待嵌入完成。编辑只改库内副本，绝不碰外部原文件；只有 `text` / `markdown` 可编辑，标题与正文校验在 `src/shared/notes.ts`（主进程、渲染进程、smoke 共用）。
+- `importPaths` / `removeDoc` / `reindexDoc` / `reindexAll` / 笔记写入 / 后台索引都走 `enqueue()` 串行队列。`importOne` 在 `saveDoc` 与错误写回前重新读取最新 `DocMeta`：已删除则放弃提交，已移动则沿用最新 `folder`，防止幽灵文档或覆盖目录归类。
 - 进度通过 `import:progress` 广播；文档列表刷新通过 `library:changed`。
 - 应用中断后，启动时把残留的 `indexing` / `pending` 标为 `error`，等待用户重试。
 - 解析器在 `src/main/core/parsers/`，每个解析器只产出 `TextBlock[]`，切块、向量化、检索自动复用。新增格式需同时更新 `parsers/index.ts` 的注册表、`DocKind` 和 UI 标签。
@@ -99,6 +101,8 @@ question → embedTexts → KnowledgeBase.hybridSearch →（可选 qwen3-rerank
 - 组件放在 `src/renderer/src/components/`；`App.tsx` 只做状态与事件编排。
 - `DocViewer` 预览 TXT / Markdown 时使用库内原文（`Markdown` 组件渲染并可切换原文），不要用切块拼接结果——重叠内容和〔标题〕标记会让正文重复。Word / Excel / PDF / PPT / 图片走 `DocContent.preview` 与 `DocPreview` 组件族。
 - 文档列表的目录交互（新建/重命名弹窗、移动弹窗、拖拽）收在 `FolderNameDialog`、`MoveDocDialog` 与 `DocList`；拖拽使用 HTML5 事件和 `application/x-jyd-doc` 自定义 MIME。目录树默认折叠，只记录用户展开的路径。
+- 目标目录选择统一用 `FolderPicker`（`MoveDocDialog` 与新建笔记共用），不要在各弹窗内重复实现列表。
+- 新建 / 编辑笔记统一走 `NoteEditorDialog`：正文是非受控 `textarea`（大文本避免逐键重渲染），`Ctrl/Cmd+S` 保存，关闭时脏检查确认；入口是 `Sidebar` 的「新建笔记」和 `DocViewer` 页脚的「编辑」（`App.tsx` 用 `noteEditor` 状态编排，编辑弹窗打开时不渲染 `DocViewer`）。
 - UI 能力优先抽成可复用组件（选择器、密钥输入、弹窗控件等），不要在页面里内联同类交互。现有通用组件：`SegmentedControl`、`SecretField`、`StatusPill`、`SourceList`、`ModelTags`（模型标签）、`OpenAiCompatibleFields`（兼容服务地址 / 可选 Key）与 `ThemePicker`（浅色 / 深色）等。
 - 样式集中在 `src/renderer/src/styles.css`，按组件类名组织，与现有风格保持一致。颜色一律使用 `:root` 语义变量，深色值写在 `:root[data-theme='dark']` 覆盖块；组件里不要写死浅色。主题持久化在 `AppSettings.theme`，`lib/theme.ts` 负责 `html[data-theme]` 与首屏缓存，主进程同步 `nativeTheme.themeSource`。
 

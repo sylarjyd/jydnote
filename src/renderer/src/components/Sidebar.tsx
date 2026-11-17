@@ -1,4 +1,12 @@
-import { BookOpen, FolderOpen, FolderPlus, RefreshCw, Settings, Upload } from 'lucide-react'
+import {
+  BookOpen,
+  FilePlus,
+  FolderOpen,
+  FolderPlus,
+  RefreshCw,
+  Settings,
+  Upload
+} from 'lucide-react'
 import type { DocMeta, ModelStatus } from '../../../shared/types'
 import DocList from './DocList'
 import StatusPill from './StatusPill'
@@ -9,6 +17,7 @@ interface Props {
   selectedIds: Set<string>
   status: ModelStatus | null
   needsReindex: boolean
+  onCreateNote: () => void
   onImportFiles: () => void
   onImportFolder: () => void
   onOpenDoc: (docId: string) => void
@@ -33,6 +42,7 @@ export default function Sidebar({
   selectedIds,
   status,
   needsReindex,
+  onCreateNote,
   onImportFiles,
   onImportFolder,
   onOpenDoc,
@@ -65,6 +75,15 @@ export default function Sidebar({
       </div>
 
       <div className="sidebar-actions">
+        <button
+          type="button"
+          className="btn-primary note-create-button"
+          onClick={onCreateNote}
+          title="在知识库内新建 Markdown 或 TXT 笔记"
+        >
+          <FilePlus size={15} />
+          新建笔记
+        </button>
         <button type="button" className="btn-primary" onClick={onImportFiles}>
           <Upload size={15} />
           导入文件

@@ -1,5 +1,6 @@
 import { ipcMain, nativeTheme } from 'electron'
 import type { AppSettings, ChatRequest, RagStreamEvent } from '../shared/types'
+import { isNoteFormat } from '../shared/notes'
 import type { LibraryService } from './services/library'
 import { answerQuestion } from './core/rag'
 import { loadSettings, saveSettings } from './settings'
@@ -51,6 +52,37 @@ export function registerIpc(library: LibraryService): void {
   ipcMain.handle('library:reindex', () => library.reindexAll())
   ipcMain.handle('library:reindex-doc', (_event, id: string) => library.reindexDoc(id))
   ipcMain.handle('library:open-source', (_event, id: string) => library.openSource(id))
+  ipcMain.handle('library:create-note', (_event, input: unknown) => {
+    if (!input || typeof input !== 'object') throw new Error('笔记参数错误')
+    const value = input as Record<string, unknown>
+    const folder = value.folder
+    if (
+      typeof value.title !== 'string' ||
+      typeof value.content !== 'string' ||
+      !isNoteFormat(value.format) ||
+      (folder !== undefined && folder !== null && typeof folder !== 'string')
+    ) {
+      throw new Error('笔记参数错误')
+    }
+    return library.createNote({
+      title: value.title,
+      content: value.content,
+      format: value.format,
+      folder: typeof folder === 'string' ? folder : null
+    })
+  })
+  ipcMain.handle('library:update-note', (_event, input: unknown) => {
+    if (!input || typeof input !== 'object') throw new Error('笔记参数错误')
+    const value = input as Record<string, unknown>
+    if (
+      typeof value.id !== 'string' ||
+      typeof value.title !== 'string' ||
+      typeof value.content !== 'string'
+    ) {
+      throw new Error('笔记参数错误')
+    }
+    return library.updateNote({ id: value.id, title: value.title, content: value.content })
+  })
 
   ipcMain.handle('settings:get', () => loadSettings())
   ipcMain.handle('settings:save', (_event, settings: AppSettings) => {

@@ -254,6 +254,23 @@ export interface DocContent {
   preview?: DocPreview
 }
 
+/** 应用内可写的笔记格式；仅用于新建，编辑时保持文档原有格式 */
+export type NoteFormat = 'markdown' | 'text'
+
+export interface CreateNoteInput {
+  title: string
+  content: string
+  format: NoteFormat
+  /** null / 空白表示知识库根目录 */
+  folder?: string | null
+}
+
+export interface UpdateNoteInput {
+  id: string
+  title: string
+  content: string
+}
+
 export interface JydApi {
   listDocs(): Promise<DocMeta[]>
   listFolders(): Promise<string[]>
@@ -265,6 +282,8 @@ export interface JydApi {
   pickAndImport(): Promise<ImportResult | null>
   pickFolder(): Promise<ImportResult | null>
   removeDoc(id: string): Promise<void>
+  createNote(input: CreateNoteInput): Promise<DocMeta>
+  updateNote(input: UpdateNoteInput): Promise<DocMeta>
   getDocContent(id: string): Promise<DocContent>
   reindexAll(): Promise<void>
   reindexDoc(id: string): Promise<void>

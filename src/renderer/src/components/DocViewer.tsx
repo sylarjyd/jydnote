@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ExternalLink, FileText, Loader2, RefreshCw, X } from 'lucide-react'
+import { ExternalLink, FileText, Loader2, Pencil, RefreshCw, X } from 'lucide-react'
 import type { DocContent } from '../../../shared/types'
 import { formatBytes, kindLabel } from '../lib/format'
 import DocPreviewView from './DocPreview'
@@ -10,13 +10,14 @@ interface Props {
   docId: string
   onClose: () => void
   onReindex: (docId: string) => void
+  onEdit: (content: DocContent) => void
 }
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-export default function DocViewer({ docId, onClose, onReindex }: Props) {
+export default function DocViewer({ docId, onClose, onReindex, onEdit }: Props) {
   const [content, setContent] = useState<DocContent | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [markdownMode, setMarkdownMode] = useState<'rendered' | 'raw'>('rendered')
@@ -63,6 +64,13 @@ export default function DocViewer({ docId, onClose, onReindex }: Props) {
 
   const indexing = content?.meta.status === 'indexing' || content?.meta.status === 'pending'
   const markdown = content?.meta.kind === 'markdown'
+  // 只有 TXT / Markdown 能在应用内改写；索引中不提供入口，失败状态反而允许编辑以修复内容
+  const editable = Boolean(
+    content &&
+      !indexing &&
+      content.meta.sourceRel &&
+      (content.meta.kind === 'text' || content.meta.kind === 'markdown')
+  )
   const hasText = Boolean(content?.text.trim())
   const preview = content?.preview ?? null
   const showRenderedMarkdown = Boolean(
@@ -148,6 +156,17 @@ export default function DocViewer({ docId, onClose, onReindex }: Props) {
         <footer className="dialog-footer">
           <span className="footer-note">内容来自库内原文或本地解析结果，原文件可由系统程序打开。</span>
           <div className="footer-actions">
+            {editable && content ? (
+              <button
+                type="button"
+                className="btn-outline"
+                onClick={() => onEdit(content)}
+                title="编辑库内副本，磁盘上的原始文件不会被修改"
+              >
+                <Pencil size={14} />
+                编辑
+              </button>
+            ) : null}
             <button type="button" className="btn-ghost" onClick={() => onReindex(docId)}>
               <RefreshCw size={14} />
               {content?.meta.status === 'error' ? '重试索引' : '重建索引'}
